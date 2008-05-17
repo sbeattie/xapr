@@ -1,0 +1,752 @@
+<html>
+<head>
+<script type="text/javascript">
+
+// -------------------------------------------------------------------------------------------
+// JSRPC XMLHttpRequestObject
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_XMLHttpRequestObject()
+{
+    if( window.XMLHttpRequest )
+	{
+        return new XMLHttpRequest();
+    }
+    else if( window.ActiveXObject )
+	{
+        var msxmls = new Array (
+            'Msxml2.XMLHTTP.5.0',
+            'Msxml2.XMLHTTP.4.0',
+            'Msxml2.XMLHTTP.3.0',
+            'Msxml2.XMLHTTP',
+            'Microsoft.XMLHTTP'
+		);
+
+        for ( var i=0; i<msxmls.length; i++ )
+		{
+            try
+			{
+                return new ActiveXObject(msxmls[i]);
+            }
+			catch (e)
+			{
+				// do nothing
+            }
+        }
+    }
+    throw new Error( "Could not instantiate JSRPC_XMLHttpRequest!" );
+}
+
+// -------------------------------------------------------------------------------------------
+// JSRPC AsyncRequest
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_AsyncRequest()
+{
+    this._xmlhttp = new JSRPC_XMLHttpRequestObject();
+    this.username = null;
+    this.password = null;
+	this.timeOut = 5000; // default 5secs timeout on each request
+	this.timeOutCallback = null;
+}
+
+JSRPC_AsyncRequest.prototype.setCredentials = function( user, pass )
+{
+    this.username = user;
+    this.password = pass;
+}
+
+JSRPC_AsyncRequest.prototype.setTimeOut = function( ms )
+{
+	this.timeOut = ms;
+}
+
+JSRPC_AsyncRequest.prototype.call = function( action, url, data )
+{
+    var instance = this;
+
+    this._xmlhttp.open( action, url, true, this.username, this.password );
+    
+	this.onOpen( this._xmlhttp );
+
+    this._xmlhttp.onreadystatechange = function()
+	{
+        switch( instance._xmlhttp.readyState )
+		{
+			case 1:
+				instance.onLoading();
+				break;
+			case 2:
+				instance.onLoaded();
+				break;
+			case 3:
+				instance.onInteract();
+				break;
+			case 4:
+				if( instance.onResult )
+				{
+					var statusCode = instance._xmlhttp.status;
+
+					if( statusCode == 0 || ( statusCode>= 200 && statusCode < 300 ) )
+					{
+							instance.onResult( instance._xmlhttp.responseXML );
+					}
+					else
+					{
+							instance.onStatus(
+								statusCode,
+								instance._xmlhttp.statusText,
+								instance._xmlhttp.responseText,
+								instance._xmlhttp.responseXML
+							);
+					}
+					clearTimeout( this.timeOutCallback );
+				}
+				break;
+			default:
+				break;
+        }
+    }
+    try
+	{
+		this._xmlhttp.send( data );
+
+		// start timer
+		var d = new Date();
+		this.timeOutCallback = setInterval( this, "abortRequest", d.getTime() + this.timeOut );
+    }
+    catch( e )
+	{
+		// do nothing
+    }
+}
+
+JSRPC_AsyncRequest.prototype.abortRequest = function()
+{
+	this._xmlhttp.abort();
+	this.onTimeOut();
+}
+
+JSRPC_AsyncRequest.prototype.get = function( url )
+{
+    this.call( "GET", url, null );
+}
+
+JSRPC_AsyncRequest.prototype.post = function( url, mimetype, datalength, data )
+{
+	this.onOpen = function( xmlhttp )
+	{
+        xmlhttp.setRequestHeader( "Content-Type", mimetype );
+        xmlhttp.setRequestHeader( "Content-Length", datalength );
+    }
+
+    this.call( "POST", url, data );
+}
+
+JSRPC_AsyncRequest.prototype.onOpen = function()
+{
+	// hook method
+}
+
+JSRPC_AsyncRequest.prototype.onLoading = function()
+{
+	// hook method
+}
+
+JSRPC_AsyncRequest.prototype.onTimeOut = function()
+{
+	alert( "onTimeOut" );
+}
+
+JSRPC_AsyncRequest.prototype.onLoaded = function()
+{
+	// alert( "onLoaded" );
+}
+
+JSRPC_AsyncRequest.prototype.onInteract = function()
+{
+	// alert( "onInteract" );
+}
+
+JSRPC_AsyncRequest.prototype.onResult = function( responseXML )
+{
+	alert( responseXML );
+}
+
+JSRPC_AsyncRequest.prototype.onStatus = function( status, statusText, responseText, responseXML )
+{
+	alert( status + ": " + statusText );
+}
+
+// -------------------------------------------------------------------------------------------
+// JSRPC Serializer
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_Serializer()
+{
+}
+
+JSRPC_Serializer.prototype.getClassName = function( obj )
+{
+	var funcText = obj.constructor.toString();
+	var matches = funcText.match( /function ([^\s(]+)/ );
+
+	return matches[1];
+}
+
+JSRPC_Serializer.prototype.serialize = function( item, doc )
+{
+	switch ( typeof item )
+	{
+		case "boolean":		
+			var node = doc.createElement( 'b' );
+			node.setAttribute('v', Boolean( item ) );
+			return node;
+			
+		case "string":
+			var node = doc.createElement( 's' );
+			var textNode = doc.createTextNode( escape( item ) );
+			node.appendChild( textNode );
+			return node;
+
+		case "number":
+			var node = doc.createElement( 'n' );
+			node.setAttribute('v', item);
+			return node;
+
+		case "object":
+
+			if( item == null )
+			{
+				var node = doc.createElement( 'u' ); 
+				return node;
+			}
+
+			if( item instanceof Date )
+			{
+				var node = doc.createElement( 'd' );
+				node.setAttribute('v', item.getTime() );
+				return node;
+			}
+
+			else if ( item instanceof Array )
+			{
+				if ( item.length == 0 ) return;
+
+				var node = doc.createElement( 'a' );
+				for ( var i in item )
+				{
+					var elemNode = doc.createElement( 'e' );
+					elemNode.setAttribute('k', i);
+					elemNode.appendChild( JSRPC_Serializer.serialize( item[i], doc ) );
+					node.appendChild( elemNode );
+				};
+				return node;
+			}
+
+			else
+			{
+				var node = doc.createElement( 'o' );
+				node.setAttribute( 'c', this.getClassName( item ) );
+				for ( var i in item )
+				{
+					if ( !( item[i] instanceof Function ) )
+					{
+						var elemNode = doc.createElement( 'e' );
+						elemNode.setAttribute('k', i);
+						elemNode.appendChild( JSRPC_Serializer.serialize( item[i], doc ) );
+						node.appendChild( elemNode );
+					}
+				};
+				return node;
+			}
+
+		default:		
+			var node = doc.createElement( 'u' ); 
+			return node;
+	}
+}
+
+// instantiate JSRPC_Serializer singleton
+JSRPC_Serializer = new JSRPC_Serializer();
+
+// -------------------------------------------------------------------------------------------
+// JSRPC_Deserializer
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_Deserializer()
+{
+}
+
+JSRPC_Deserializer.prototype.deserialize = function( node )
+{
+	switch ( node.nodeName )
+	{
+		case "b":  // Boolean ( represented as '0' or '1' )
+			return Boolean( node.getAttribute('v') );
+		
+		case "s":  // String in <![CDATA[]]> node - !!! not possible
+			return String( node.firstChild.nodeValue );
+
+		case "u":  // Null
+			return null;
+
+		case "n":  // Number
+			return Number( node.getAttribute('v') );
+
+		case "d":  // Date
+			var d = new Date()
+			d.setTime( node.getAttribute('v') );
+			return d;
+
+		case "a":  // Array
+			var a = new Array();
+			var subNode = node.firstChild;
+			while( subNode != null )
+			{	
+				a[ Number( subNode.getAttribute('k') ) ] = JSRPC_Deserializer.deserialize( subNode.firstChild );
+				subNode = subNode.nextSibling;
+			}
+			return a;
+
+		case "o":  // Object/Class
+			if ( node.getAttribute('c') != undefined )
+			{
+				var className = node.getAttribute('c');
+				var o = new ( eval(className) )();
+			}
+			else
+			{	var o = new Object();
+			}
+
+			var subNode = node.firstChild;
+			while( subNode != null )
+			{
+				o[ subNode.getAttribute('k') ] = JSRPC_Deserializer.deserialize( subNode.firstChild );
+				subNode = subNode.nextSibling;
+			}
+			return o;
+
+		default:
+			return null;
+	}
+}
+
+// instantiate JSRPC_Serializer singleton
+JSRPC_Deserializer = new JSRPC_Deserializer();
+
+// -------------------------------------------------------------------------------------------
+// JSRPC XMLDocument
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_XMLDocument() 
+{
+	var xmlDoc;
+	// code for IE
+	if ( window.ActiveXObject )
+	{
+		var msdoms = new Array(
+			"MSXML5.DOMDocument",
+			"MSXML4.DOMDocument", 
+            "MSXML3.DOMDocument",
+            "MSXML2.DOMDocument", 
+            "MSXML.DOMDocument",
+            "Microsoft.XMLDOM"
+		);
+
+        for ( var i=0; i<msdoms.length; i++ )
+		{
+            try
+			{
+                return new ActiveXObject(msdoms[i]);
+            }
+			catch (e)
+			{
+				// do nothing
+            }
+        }
+	}
+	// code for Mozilla, Firefox, Opera, etc.
+	else if ( document.implementation && document.implementation.createDocument )
+	{
+		xmlDoc = document.implementation.createDocument( "", "", null );
+	}
+	else
+	{
+		throw new Error( "Could not instantiate JSRPC_XMLDocument" );
+	}
+	return xmlDoc;
+}
+
+// -------------------------------------------------------------------------------------------
+// JSRPC_RequestPacket
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_RequestPacket( id, method )
+{
+	this._xml = new JSRPC_XMLDocument();
+
+	var rootNode = this._xml.createElement( 'request' );
+	rootNode.setAttribute('id', id );
+	rootNode.setAttribute('method', method );
+	this._xml.appendChild( rootNode );
+
+	this._paramsCount = 0;
+
+	var pNode = this._xml.createElement( 'params' );
+	rootNode.appendChild( pNode );
+	this._paramsNode = this._xml.createElement( 'a' );
+	pNode.appendChild( this._paramsNode );
+}
+
+JSRPC_RequestPacket.prototype.addParameter = function( arg )
+{
+	var elemNode = this._xml.createElement( 'e' );
+	elemNode.setAttribute('k', this._paramsCount );
+	var argNode = JSRPC_Serializer.serialize( arg, this._xml );
+	elemNode.appendChild( argNode );
+
+	this._paramsNode.appendChild( elemNode );
+	this._paramsCount++;
+}
+
+JSRPC_RequestPacket.prototype.getXML = function()
+{
+	//return this._xml.toString();
+	var serializer = new XMLSerializer();
+	return serializer.serializeToString(this._xml);
+}
+
+// -------------------------------------------------------------------------------------------
+// JSRPC_ResponsePacket
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_ResponsePacket( id )
+{
+	this._xml = new JSRPC_XMLDocument();
+
+	var rootNode = this._xml.createElement( 'response' );
+	rootNode.setAttribute( 'id', id );
+	this._xml.appendChild( rootNode );
+
+	this._resultNode = this._xml.createElement( 'result' );
+	rootNode.appendChild( this._resultNode );
+}
+
+JSRPC_ResponsePacket.prototype.setResult = function( result )
+{
+	var resNode = JSRPC_Serializer.serialize( result, this._xml );
+	this._resultNode.appendChild( resNode );
+}
+
+JSRPC_ResponsePacket.prototype.getXML = function()
+{
+	//return this._xml.toString();
+	var serializer = new XMLSerializer();
+	return serializer.serializeToString(this._xml);
+}
+
+
+// -------------------------------------------------------------------------------------------
+// JSRPC_ErrorPacket
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_ErrorPacket( id, code, msg , type )
+{
+	this._xml = new JSRPC_XMLDocument();
+
+	var rootNode = this._xml.createElement( 'error ');
+	rootNode.setAttribute( 'id', id );
+	rootNode.setAttribute('code', code );
+	rootNode.setAttribute('msg', msg );
+	rootNode.setAttribute('type', type );
+	this._xml.appendChild( rootNode );
+
+	this._detailNode = this._xml.createElement( 'detail' );
+	rootNode.appendChild( this._detailNode );
+}
+
+JSRPC_ErrorPacket.prototype.setDetail = function( detail )
+{
+	var detNode = JSRPC_Serializer.serialize( detail, this._xml );
+	this._detailNode.appendChild( detNode );
+}
+
+JSRPC_ErrorPacket.prototype.getXML = function()
+{
+	//return this._xml.toString();
+	var serializer = new XMLSerializer();
+	return serializer.serializeToString(this._xml);
+}
+
+
+// -------------------------------------------------------------------------------------------
+// JSRPC DataBridge
+// -------------------------------------------------------------------------------------------
+
+function JSRPC_DataBridge( url )
+{
+	this._lastRequest = null;
+	this._lastResponse = null;
+	this._lastError = null;
+	
+	this._requestID = 1;
+	this._handlers = new Array();
+	this._gatewayURL = url;
+
+	this._xmlhttp = new JSRPC_XMLHttpRequest();
+}
+
+JSRPC_DataBridge.prototype.__send = function ( msg )
+{
+	alert( 'SENT: ' + "\n" + msg + "\n" );
+
+	// do sending
+
+}
+
+JSRPC_DataBridge.prototype.sendRequest = function ()
+{
+	var id = this._requestID;
+	var method = arguments[0];
+	var params = arguments.slice(2);
+
+	var packet = new RequestPacket( id, method );
+	for( var i=0; i<params.length; i++ )
+	{
+		packet.addParameter( params[i] );
+	}
+
+	// store last request ( for debugging )
+	var msg = packet.getXML();
+	this._lastRequest = msg;
+
+	this.__send( msg );
+	this._handlers[ id ] = arguments[1];
+	this._requestID++;
+}
+
+JSRPC_DataBridge.prototype.sendResponse = function ( id, obj )
+{
+	var packet = new ResponsePacket( id );
+	packet.setResult( obj );
+
+	// store last response ( for debugging )
+	var msg = packet.getXML();
+	this._lastResponse = msg;
+
+	this.__send( msg );
+}
+
+JSRPC_DataBridge.prototype.sendError = function ( id, code, message, detail, type )
+{
+	var packet = new ErrorPacket( id, code, message, type );
+	packet.setDetail( detail );
+
+	// store last response ( for debugging )
+	var msg = packet.getXML();
+	this._lastError = msg;
+
+	this.__send( msg );
+}
+
+
+
+	// Receiving Information
+
+
+JSRPC_DataBridge.prototype.onData = function ( xmlStr )
+{
+	alert( 'RECEIVED: ' + "\n" + xmlStr + "\n" );
+	var node = new JSRPC_XMLDocument();
+		node.parseXML( xmlStr );
+
+	var rootNode = node.firstChild;
+
+	switch ( rootNode.nodeName )
+	{
+		case "request":
+
+			var id = Number( rootNode.getAttribute('id') );
+			var paramsNode = rootNode.firstChild;
+			var params = JSRPC_Deserializer.deserialize( paramsNode.firstChild );
+			
+			var func = eval( rootNode.getAttribute('method') );
+
+			if ( typeof( func ) != 'function' )
+			{
+				// method not found - return error ( with full request XML )
+				this.sendError( id, 1, 'Method not found', xmlStr, 'MethodNotFoundError' );
+			}
+			else
+			{
+				// make call to local service and capture result
+				var returnData = func.apply( null, params );
+				this.sendResponse.apply( null, [id, returnData] );
+			}
+
+			break;
+
+		case "response":
+
+			var id = Number( rootNode.getAttribute('id') );
+			var resultNode = rootNode.firstChild;
+			var resultObj = JSRPC_Deserializer.deserialize( resultNode.firstChild );
+			
+			var scope = _handlers[ id ];
+			scope.onResponse.apply( null, [resultObj] );
+
+			break;
+
+		case "error":
+
+			var id = Number( rootNode.attributes['id'] );
+
+			var code = rootNode.getAttribute('code');
+			var msg = rootNode.getAttribute('msg');
+			var detail = JSRPC_Deserializer.deserialize( rootNode.firstChild );
+			var type = rootNode.attributes['type'];
+
+			// 'static' hack to overcome scoping issues
+			var f = new Fault( code, msg, detail, type );
+			var e = new FaultEvent( id, f );
+			var scope = _handlers[ id ];
+			scope.onError.apply( null, [e] );
+
+			break;
+	}
+}
+
+	// Remote Method Resolution
+
+JSRPC_DataBridge.prototype.__resolve = function( method )
+	{
+		var f = function()
+		{
+			if ( arguments[0] != null )
+			{
+				if ( typeof( arguments[0].onResponse ) != "function" )
+				{
+					trace( "INFO: No 'onResponse' method defined in responder for call to " + method + "()" );
+					return null;
+				}
+
+				if ( typeof( arguments[0].onError ) != "function" )
+				{
+					trace( "INFO: No 'onError' method defined in responder for call to " + method + "()" );
+					return null;
+				}
+			}
+			arguments.unshift( method );
+			sendRequest.apply( this, arguments );
+		}
+		
+		this[method] = f;
+
+		return f;
+	}
+
+
+// Debug Information
+	
+JSRPC_DataBridge.prototype.getLastRequest = function()
+{
+	return this._lastRequest;
+}
+
+JSRPC_DataBridge.prototype.getLastResponse = function()
+{
+	return this._lastResponse;
+}
+
+JSRPC_DataBridge.prototype.getLastError = function()
+{
+	return this._lastError;
+}
+
+
+
+
+// -------------------------------------------------------------------------------------------
+// END
+// -------------------------------------------------------------------------------------------
+
+function doAjax()
+{
+
+	var req = new JSRPC_RequestPacket( '12', 'sayHello' );
+	req.addParameter( new Date() );
+	req.addParameter( true );
+	req.addParameter( 2 );
+	req.addParameter( null );
+	req.addParameter( [1,2] );
+	
+	function Person(){ this.name = "Stephen";}
+	var steve = new Person();
+	req.addParameter( steve );
+
+	req.addParameter( { name:'hello', id: 2 } );
+	req.addParameter( "hello" );
+	 document.getElementById('copy').innerHTML = req.getXML();
+/*
+
+    var xhr = new JSRPC_AsyncRequest();
+
+	xhr.onResult = function( responseXML ) 
+	{
+		  var response = responseXML.documentElement;
+		  txt="<table border='1'>"
+		  x=response.getElementsByTagName("CD")
+		  for (i=0;i<x.length;i++)
+			{
+			txt=txt + "<tr>"
+			xx=x[i].getElementsByTagName("TITLE")
+			  {
+			  try
+				{
+				txt=txt + "<td>" + xx[0].firstChild.data + "</td>"
+				}
+			  catch (er)
+				{
+				txt=txt + "<td> </td>"
+				}
+			  }
+			xx=x[i].getElementsByTagName("ARTIST")
+			  {    
+			  try
+				{
+				txt=txt + "<td>" + xx[0].firstChild.data + "</td>"
+				}
+			  catch (er)
+				{
+				txt=txt + "<td> </td>"
+				}
+			  }
+			txt=txt + "</tr>"
+			}
+		  txt=txt + "</table>"
+		  document.getElementById('copy').innerHTML=txt
+	  }
+
+	  var mimetype = "application/xml";
+	  var data = "Hello World";
+	  xhr.setCredentials( 'stephen', 'mypass');
+	  xhr.post( 'cd_catalog.xml',mimetype, 0, data );
+
+	
+	
+*/	
+	var o = new JSRPC_ResponsePacket();
+	o.setResult( steve );
+	  alert( o.getXML()  );
+}
+
+</script>
+</head>
+
+<body onLoad="doAjax();">
+
+<pre id="copy"></pre>
+
+</body>
+</html>
