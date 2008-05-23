@@ -15,7 +15,8 @@ XAPR sends and receives XML using HTTP POST. Scalar values like strings, integer
 == What does the XML look like? ==
 
 Requests, Responses and Errors are fully formed XML documents.
-Sample Request
+
+=== Sample Request ===
 
 Each Request has a unique identifier that is returned as part of the response so that a callback function can be mapped to handle the results from the remote procedure call.
 
@@ -30,7 +31,7 @@ Each Request has a unique identifier that is returned as part of the response so
 </request>
 }}}
 
-Sample Reponse
+=== Sample Response ===
 
 {{{
 <?xml version="1.0"?>
@@ -41,7 +42,7 @@ Sample Reponse
 </response>
 }}}
 
-Sample Error
+=== Sample Error ===
 
 {{{
 <?xml version="1.0"?>
@@ -61,7 +62,8 @@ Sample Error
 </error>
 }}}
 
-XML Serialization
+== XML Serialization ==
+
 || *Data Type* || *XML Representation* ||
 || Boolean || {{{<b v="1" /> or <b v="false" />}}} ||
 || Number || {{{<n v="1" />}}}, {{{<n v="0.322" />}}} or {{{<n v="-3" />}}} ||
