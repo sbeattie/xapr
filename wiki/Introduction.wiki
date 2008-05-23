@@ -75,23 +75,9 @@ Each Request has a unique identifier that is returned as part of the response so
 <e k="1"><n v="1" /></e>
 <e k="2"><b v="0" /></e>
 </a>}}} ||
-|| Object (Native) || {{{<o>
-<p n="id"><n v="233" /></p>
-<p n="published"><b v=”true” /></p>
-<p n="tags"><s><![CDATA[rpc, xml, serialization]]></s></p>
-</o>}}} ||
+|| Object (Native) || {{{<o><p n="id"><n v="233" /></p><p n="published"><b v=”true” /></p><p n="tags"><s><![CDATA[rpc, xml, serialization]]></s></p></o>}}} ||
 || XML || {{{<x><![CDATA[<?xml version="1.0"?><root><sub /></root>]]></x>}}} ||
-|| Object (Custom) || {{{<o c="Person">
-<p n="name"><s><![CDATA[Stephen]]></s></p>
-<p n="age"><n v="30" /></p>
-<p n="languages">
-<a>
-<e k="0"><s><![CDATA[PHP]]></s></e>
-<e k="1"><s><![CDATA[Actionscript]]></s></e>
-<e k="2"><s><![CDATA[Javascript]]></s></e>
-</a>
-</p>
-</o>}}} ||
+|| Object (Custom) || {{{<o c="Person"><p n="name"><s><![CDATA[Stephen]]></s></p><p n="age"><n v="30" /></p><p n="languages"><a><e k="0"><s><![CDATA[PHP]]></s></e><e ="1"><s><![CDATA[Actionscript]]></s></e><e k="2"><s><![CDATA[Javascript]]></s></e></a></p></o>}}} ||
 
 
 === Looks pretty complicated…is XAPR easy to use? ===
