@@ -11,11 +11,6 @@ XAPR services are regular PHP classes that extend the 'XAPR_Service' class.  Any
 
 class TestService extends XAPR_Service
 {
-	public function __construct()
-	{
-		parent::__construct();
-	}
-
 	public function addNumbers( $num1, $num2 )
 	{
 		return $num1 + $num2;
