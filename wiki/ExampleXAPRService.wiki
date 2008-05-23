@@ -7,6 +7,8 @@ XAPR services are regular PHP classes that extend the 'XAPR_Service' class.  Any
 
 
 {{{
+<?php
+
 class TestService extends XAPR_Service
 {
 	public function __construct()
@@ -34,4 +36,6 @@ class TestService extends XAPR_Service
 		return $d;
 	}
 }
+
+?>
 }}}
