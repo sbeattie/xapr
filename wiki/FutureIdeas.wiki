@@ -19,5 +19,8 @@ Implement an event-based subsystem for XAPR on the server to support flexible ca
 = Data Referencing = 
 Support circular referencing and more efficient serialisation when data appears more than once in a request/response.
 
+= Service Browser =
+A demo application, working as a proxy gateway that shows data sent and received in a more user-friendly format (like Charles/Service Capture).
+
 = More examples = 
 Pageable, sortable, searchable datagrid example to demonstrate how custom classes can works as Value Objects with Command and Service Locator patterns on the client.
