@@ -1,8 +1,8 @@
 <?php
 
 $cwd = realpath( dirname( __FILE__ ) ).'/';
-$paths = array( $cwd.'/core', $cwd.'/services' ini_get( 'includes_path' ) );
-ini_set( 'includes_path', explode( PATH_SEPARATOR, $paths ) );
+$paths = array( $cwd.'/core', $cwd.'/services', ini_get( 'include_path' ) );
+ini_set( 'include_path', implode( PATH_SEPARATOR, $paths ) );
 
 function __autoload( $class_name ){
 	require $class_name.'.php';
