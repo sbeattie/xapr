@@ -1,0 +1,3 @@
+XAPR is RPC library that uses PHP5's XML functionality to handle requests from a variety of client technologies including Flash, Javascript and even PHP. XAPR is an alternative to other mechanisms such as SOAP, JSON-RPC and XML-RPC. Heavily influenced by AMFPHP, JSON-RPC and the excellent (but now seemingly abandoned) JPSPAN, XAPR is an attempt to take the best ideas and roll an easy-to-use, universal solution.
+
+http://www.stephenbeattie.com/xapr
